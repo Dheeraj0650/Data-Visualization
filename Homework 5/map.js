@@ -12,11 +12,12 @@ function drawMap(world, populationData) {
     var worldMap = svg.append("g")
         .attr("class", "map");
 
-    let colors = [ "#3D8361" ,"#CFB997" ,"#E14D2A" ,"#61764B" ,"#FD841F"];
-
-    let colorValue = d3.scaleQuantile()
-        .domain([0, 8])
-        .range(colors);
+    let colors = ["#3D8361" ,"#CFB997" ,"#E14D2A" ,"#61764B" ,"#FD841F"];
+    let fillRange = [];
+    let legendWidth = 250;
+    let legendHeight = 20;
+    var max = 80;
+    var min = -20;
 
     // var zoom = d3.zoom()
     //     .on("zoom", function () {
@@ -38,6 +39,48 @@ function drawMap(world, populationData) {
         d.details = populationData[d.properties.NAME.replaceAll(" ", "").trim() + "County"] ? populationData[d.properties.NAME.replaceAll(" ", "").trim() + "County"] : {};
     });
 
+    features.sort(function (a, b){
+        return a.details.unemploymentRate - b.details.unemploymentRate;
+    });
+
+    console.log(features)
+
+    for(let i = 0;i <= colors.length;i++)
+        fillRange.push(legendWidth/colors.length * i);
+
+    let axisScale = d3.scaleQuantile().range(fillRange);
+
+    let diff = (max - min)/colors.length;
+    let LegendScale = [];
+    for(let i = 0;i <= colors.length;i++)
+        LegendScale.push(diff * (i + 1) + min);
+
+    var colorScale = d3.scaleLinear()
+        .domain([0,12])
+        .range(["white", "#61764B"]);
+
+    for(let idx = 0; idx < features.length;idx++){
+        var color = colorScale(features[idx].details.unemploymentRate);
+        colors.push(color);
+    }
+
+    colors = colors.slice(5);
+
+    axisScale.domain(LegendScale);
+
+    let legendaxis = d3.axisBottom(axisScale).tickFormat(x=>  x.toFixed(1) + "%");
+
+    let legend = svg.selectAll(".legend").data(colors).enter().append("g").attr("transform", "translate(250,810)")
+
+    legend.append("rect").attr("width", legendWidth/colors.length).attr("height", legendHeight).style("fill", d=>d)
+        .attr("x", (d,i)=> legendWidth/colors.length * i)
+
+
+    svg.append("g").attr("class", "axis")
+        .attr("transform", "translate(250,830)")
+        .call(legendaxis);
+
+
     worldMap.append("g")
         .selectAll("path")
         .data(features)
@@ -52,7 +95,7 @@ function drawMap(world, populationData) {
                     })
                     .attr("d", path)
                     .attr("fill", function (d, i) {
-                        return colorValue(Math.ceil(((d.details.unemploymentRate * 5) / 10)));
+                        return colorScale(d.details.unemploymentRate)
                     })
                     .style("stroke", "white")
                     .style("stroke-width", 0.015)
